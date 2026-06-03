@@ -7,85 +7,387 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============ ENUMS ============
+
 enum Role {
-  admin
-  seller
-  buyer
+  ADMIN
+  SELLER
+  BUYER
 }
 
-enum Unit {
-  g
-  kg
-  L
-  mL
-  item
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
 }
 
-enum OrderStatus {
-  pending
-  confirmed
-  shipped
-  cancelled
+enum SellerStatus {
+  PENDING_APPROVAL
+  APPROVED
+  SUSPENDED
+  CLOSED
 }
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+  APPROVED
+  PAID
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+// ============ USERS & AUTH ============
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  name      String?
-  password  String
-  role      Role     @default(buyer)
-  createdAt DateTime @default(now())
+  id              String @id @default(cuid())
+  email           String @unique
+  password        String // bcrypt hashed
+  role            Role @default(BUYER)
+  
+  // Profile
+  name            String?
+  avatar          String?
+  phone           String?
+  address         String?
+  
+  // Status
+  status          UserStatus @default(ACTIVE)
+  lastLogin       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  seller          Seller? // if role = SELLER
+  quotations      Quotation[] // if role = BUYER
+  cart            Cart?
+  wishlist        Wishlist?
+  
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
 
-  products Product[]
-  orders   Order[]
+// ============ SELLERS ============
+
+model Seller {
+  id                  String @id @default(cuid())
+  userId              String @unique
+  user                User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Business Info
+  businessName        String
+  registrationNumber  String @unique
+  taxId               String?
+  businessAddress     String?
+  businessPhone       String?
+  
+  // Bank Details
+  bankName            String?
+  accountNumber       String?
+  ifscCode            String?
+  
+  // Status
+  status              SellerStatus @default(PENDING_APPROVAL)
+  
+  // Metrics (cached)
+  totalSales          Decimal @default(0) @db.Decimal(19, 2)
+  totalOrders         Int @default(0)
+  
+  // Relations
+  products            Product[]
+  quotations          Quotation[]
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@index([status])
+  @@index([businessName])
+}
+
+// ============ UNIT SYSTEM ============
+
+model UnitCategory {
+  id          String @id @default(cuid())
+  name        String @unique // 'weight', 'volume', 'count'
+  dimension   String // 'mass', 'length', 'discrete'
+  
+  units       Unit[]
+  createdAt   DateTime @default(now())
+}
+
+model Unit {
+  id           String @id @default(cuid())
+  code         String @unique // 'g', 'kg', 'mL', 'L', 'item'
+  name         String // 'gram', 'kilogram'
+  symbol       String // 'g', 'kg'
+  
+  categoryId   String
+  category     UnitCategory @relation(fields: [categoryId], references: [id])
+  
+  baseMultiplier Decimal @db.Decimal(19, 6) // e.g., kg has 1000.0
+  isAtomic     Boolean @default(false) // true for g, mL, item
+  isActive     Boolean @default(true)
+  
+  // Relations
+  productsBaseUnit    Product[] @relation("ProductBaseUnit")
+  productsSupported   Product[] @relation("ProductUnits")
+  quotationItems      QuotationItem[]
+  conversionFrom      ConversionFactor[] @relation("ConversionFrom")
+  conversionTo        ConversionFactor[] @relation("ConversionTo")
+  
+  createdAt   DateTime @default(now())
+  
+  @@unique([categoryId, code])
+  @@index([code])
+}
+
+// ============ PRODUCTS & INVENTORY ============
+
+model ProductCategory {
+  id          String @id @default(cuid())
+  name        String @unique
+  description String?
+  icon        String?
+  
+  products    Product[]
+  createdAt   DateTime @default(now())
+  
+  @@index([name])
 }
 
 model Product {
-  id                String   @id @default(uuid())
-  sellerId          String
-  seller            User     @relation(fields: [sellerId], references: [id])
-  name              String
-  description       String?
-  sku               String?  @unique
-  categoryId        String?
-  baseUnit          Unit
-  basePrice         Decimal  @db.Decimal(19, 6)
-  conversionFactors Json
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  inventory  Inventory?
-  orderItems OrderItem[]
+  id              String @id @default(cuid())
+  
+  // Ownership
+  sellerId        String
+  seller          Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  name            String
+  sku             String
+  description     String?
+  categoryId      String?
+  category        ProductCategory? @relation(fields: [categoryId], references: [id])
+  images          String[] @default([])
+  
+  // Unit & Pricing Core
+  baseUnitId      String
+  baseUnit        Unit @relation("ProductBaseUnit", fields: [baseUnitId], references: [id])
+  supportedUnits  Unit[] @relation("ProductUnits")
+  basePrice       Decimal @db.Decimal(19, 6) // INR per base unit
+  
+  // GST (India)
+  hsnCode         String?
+  gstRate         Decimal? @db.Decimal(5, 2)
+  
+  // Relations
+  inventory       Inventory?
+  conversions     ConversionFactor[]
+  quotationItems  QuotationItem[]
+  
+  // Status
+  status          ProductStatus @default(ACTIVE)
+  isPublished     Boolean @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([sku, sellerId]) // SKU unique per seller
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([status])
 }
 
 model Inventory {
-  id        String   @id @default(uuid())
-  productId String   @unique
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quantity  Decimal  @db.Decimal(19, 6)
-  updatedAt DateTime @updatedAt
+  id              String @id @default(cuid())
+  productId       String @unique
+  product         Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  quantity        Decimal @db.Decimal(19, 6) // Always in base unit
+  reorderLevel    Decimal @db.Decimal(19, 6) @default(0)
+  
+  lastUpdated     DateTime @default(now()) @updatedAt
+  updatedBy       String?
+  
+  @@index([productId])
 }
 
-model Order {
-  id          String      @id @default(uuid())
-  buyerId     String
-  buyer       User        @relation(fields: [buyerId], references: [id])
-  status      OrderStatus @default(pending)
-  totalAmount Decimal     @db.Decimal(19, 2)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  items OrderItem[]
+model ConversionFactor {
+  id              String @id @default(cuid())
+  productId       String
+  product         Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  fromUnitId      String
+  fromUnit        Unit @relation("ConversionFrom", fields: [fromUnitId], references: [id])
+  
+  toUnitId        String
+  toUnit          Unit @relation("ConversionTo", fields: [toUnitId], references: [id])
+  
+  factor          Decimal @db.Decimal(19, 6) // 1 fromUnit = ? toUnit
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([productId, fromUnitId, toUnitId])
+  @@index([productId])
 }
 
-model OrderItem {
-  id              String  @id @default(uuid())
-  orderId         String
-  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+// ============ QUOTATIONS & ORDERS ============
+
+model Quotation {
+  id              String @id @default(cuid())
+  
+  quotationNumber String @unique
+  
+  userId          String
+  user            User @relation(fields: [userId], references: [id])
+  
+  sellerId        String?
+  seller          Seller? @relation(fields: [sellerId], references: [id])
+  
+  status          QuotationStatus @default(DRAFT)
+  
+  subtotal        Decimal @db.Decimal(19, 2) @default(0)
+  taxAmount       Decimal @db.Decimal(19, 2) @default(0)
+  shippingCost    Decimal @db.Decimal(19, 2) @default(0)
+  totalAmount     Decimal @db.Decimal(19, 2) @default(0)
+  
+  items           QuotationItem[]
+  
+  notes           String?
+  deliveryAddress String?
+  
+  createdAt       DateTime @default(now())
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  completedAt     DateTime?
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model QuotationItem {
+  id              String @id @default(cuid())
+  quotationId     String
+  quotation       Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  
   productId       String
   product         Product @relation(fields: [productId], references: [id])
-  orderedUnit     Unit
+  
   orderedQuantity Decimal @db.Decimal(19, 6)
+  orderedUnitId   String
+  orderedUnit     Unit @relation(fields: [orderedUnitId], references: [id])
+  
+  baseUnit        String
+  baseQuantity    Decimal @db.Decimal(19, 6)
   unitPrice       Decimal @db.Decimal(19, 6)
   lineTotal       Decimal @db.Decimal(19, 2)
+  
+  gstApplied      Decimal @db.Decimal(19, 2) @default(0)
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([quotationId])
+  @@index([productId])
+}
+
+// ============ SHOPPING CART ============
+
+model Cart {
+  id              String @id @default(cuid())
+  userId          String @unique
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  items           CartItem[]
+  
+  lastModified    DateTime @default(now()) @updatedAt
+}
+
+model CartItem {
+  id              String @id @default(cuid())
+  cartId          String
+  cart            Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  
+  productId       String
+  quantity        Decimal @db.Decimal(19, 6)
+  unitId          String
+  
+  unitPrice       Decimal @db.Decimal(19, 6) @default(0)
+  lineTotal       Decimal @db.Decimal(19, 2) @default(0)
+  
+  addedAt         DateTime @default(now())
+  
+  @@unique([cartId, productId])
+  @@index([cartId])
+}
+
+// ============ WISHLIST ============
+
+model Wishlist {
+  id              String @id @default(cuid())
+  userId          String @unique
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  items           WishlistItem[]
+  createdAt       DateTime @default(now())
+}
+
+model WishlistItem {
+  id              String @id @default(cuid())
+  wishlistId      String
+  wishlist        Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  
+  productId       String
+  addedAt         DateTime @default(now())
+  
+  @@unique([wishlistId, productId])
+}
+
+// ============ AUDIT & COMPLIANCE ============
+
+model AuditLog {
+  id              String @id @default(cuid())
+  userId          String?
+  action          String
+  resourceType    String
+  resourceId      String
+  
+  changes         Json
+  ipAddress       String?
+  
+  timestamp       DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+}
+
+model ConversionLog {
+  id              String @id @default(cuid())
+  quotationItemId String
+  
+  orderedQuantity Decimal @db.Decimal(19, 6)
+  orderedUnit     String
+  conversionFactor Decimal @db.Decimal(19, 6)
+  baseQuantity    Decimal @db.Decimal(19, 6)
+  baseUnit        String
+  
+  unitPrice       Decimal @db.Decimal(19, 6)
+  lineTotal       Decimal @db.Decimal(19, 2)
+  
+  timestamp       DateTime @default(now())
+  
+  @@index([quotationItemId])
 }

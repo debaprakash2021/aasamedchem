@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { GET } from "@/app/api/auth/[...nextauth]/route";
 
 export default async function Home() {
-  const session = await getServerSession(GET as any);
+  const session = await getServerSession(authOptions);
 
   if (!session) {
     redirect("/login");

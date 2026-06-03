@@ -1,36 +1,74 @@
+import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import type { NextRequest } from "next/server";
+import type { NextRequestWithAuth } from "next-auth/middleware";
 
-export async function middleware(request: NextRequest) {
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-  const { pathname } = request.nextUrl;
+export default withAuth(
+  function middleware(request: NextRequestWithAuth) {
+    const { pathname } = request.nextUrl;
+    const token = request.nextauth.token;
 
-  // Protect /admin routes
-  if (pathname.startsWith("/admin")) {
-    if (!token) return NextResponse.redirect(new URL("/login", request.url));
-    if (token.role !== "admin") return NextResponse.redirect(new URL("/", request.url));
-  }
-
-  // Protect /seller routes
-  if (pathname.startsWith("/seller")) {
-    if (!token) return NextResponse.redirect(new URL("/login", request.url));
-    if (token.role !== "admin" && token.role !== "seller") {
-      return NextResponse.redirect(new URL("/", request.url));
+    // Check authentication
+    if (!token) {
+      if (pathname.startsWith("/api")) {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+      return NextResponse.redirect(new URL("/login", request.url));
     }
-  }
 
-  // Protect /buyer routes
-  if (pathname.startsWith("/buyer")) {
-    if (!token) return NextResponse.redirect(new URL("/login", request.url));
-    if (token.role !== "admin" && token.role !== "buyer") {
-      return NextResponse.redirect(new URL("/", request.url));
+    // RBAC - Role-based access control
+    const userRole = token.role as string;
+
+    // Admin routes
+    if (pathname.startsWith("/admin")) {
+      if (userRole !== "ADMIN") {
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
     }
-  }
 
-  return NextResponse.next();
-}
+    // Seller routes
+    if (pathname.startsWith("/seller")) {
+      if (userRole !== "SELLER") {
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
+    }
+
+    // Buyer routes
+    if (pathname.startsWith("/buyer")) {
+      if (userRole !== "BUYER") {
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
+    }
+
+    // API routes - attach user info to headers for verification
+    if (pathname.startsWith("/api")) {
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set("x-user-id", token.sub as string);
+      requestHeaders.set("x-user-role", userRole);
+      if (token.sellerId) {
+        requestHeaders.set("x-seller-id", token.sellerId as string);
+      }
+
+      return NextResponse.next({
+        request: {
+          headers: requestHeaders,
+        },
+      });
+    }
+
+    return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: ({ token }) => {
+        return !!token;
+      },
+    },
+  }
+);
 
 export const config = {
-  matcher: ["/admin/:path*", "/seller/:path*", "/buyer/:path*"],
+  matcher: ["/admin/:path*", "/seller/:path*", "/buyer/:path*", "/api/:path*"],
 };

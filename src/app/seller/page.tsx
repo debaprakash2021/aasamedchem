@@ -1,9 +1,9 @@
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
-import { GET } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 
 export default async function SellerDashboard() {
-  const session = await getServerSession(GET as any);
+  const session = await getServerSession(authOptions);
   const userId = (session?.user as any)?.id;
 
   const productsCount = await prisma.product.count({ where: { sellerId: userId } });

@@ -1,9 +1,9 @@
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 
 export default async function AdminDashboard() {
   const usersCount = await prisma.user.count();
   const productsCount = await prisma.product.count();
-  const ordersCount = await prisma.order.count();
+  const quotationsCount = await prisma.quotation.count();
 
   return (
     <div>
@@ -29,8 +29,8 @@ export default async function AdminDashboard() {
 
         <div className="glass-panel p-6 rounded-2xl flex flex-col justify-center items-center relative overflow-hidden group hover:border-purple-500/30 transition-all">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-2">Total Orders</h2>
-          <p className="text-5xl font-bold text-white">{ordersCount}</p>
+          <h2 className="text-sm font-medium text-slate-400 uppercase tracking-wider mb-2">Quotations</h2>
+          <p className="text-5xl font-bold text-white">{quotationsCount}</p>
         </div>
       </div>
     </div>

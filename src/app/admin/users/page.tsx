@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 
 export default async function AdminUsersPage() {
   const users = await prisma.user.findMany({
@@ -36,8 +36,8 @@ export default async function AdminUsersPage() {
                 <td className="px-6 py-4">{user.email}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                    user.role === 'admin' ? 'bg-purple-500/20 text-purple-300' :
-                    user.role === 'seller' ? 'bg-blue-500/20 text-blue-300' :
+                    user.role === 'ADMIN' ? 'bg-purple-500/20 text-purple-300' :
+                    user.role === 'SELLER' ? 'bg-blue-500/20 text-blue-300' :
                     'bg-emerald-500/20 text-emerald-300'
                   }`}>
                     {user.role}
