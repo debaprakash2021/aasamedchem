@@ -18,7 +18,8 @@ export const authOptions: NextAuthOptions = {
           where: { email: credentials.email },
         });
         
-        if (!user || user.status !== "ACTIVE") return null;
+        if (!user) return null;
+        if (user.status === "SUSPENDED") throw new Error("Account is suspended by Admin");
         
         const isValid = await bcrypt.compare(credentials.password, user.password);
         if (!isValid) return null;

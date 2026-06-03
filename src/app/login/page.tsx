@@ -24,7 +24,7 @@ export default function LoginPage() {
     });
 
     if (res?.error) {
-      setError("Invalid credentials");
+      setError(res.error === "Account is suspended by Admin" ? res.error : "Invalid email or password");
       setIsLoading(false);
     } else {
       router.push("/");
