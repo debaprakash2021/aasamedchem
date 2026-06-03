@@ -9,6 +9,11 @@ export default withAuth(
 
     // Check authentication
     if (!token) {
+      // Public API routes
+      if (pathname.startsWith("/api/auth/") || pathname.match(/^\/api\/products\/[^\/]+\/preview$/)) {
+        return NextResponse.next();
+      }
+
       if (pathname.startsWith("/api")) {
         return NextResponse.json(
           { error: "Unauthorized" },

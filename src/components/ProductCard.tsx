@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { addToCart } from "@/app/actions/cart";
 
 type SupportedUnit = { id: string; code: string; name: string };
@@ -19,6 +21,8 @@ type ProductCardProps = {
 };
 
 export function ProductCard({ product }: ProductCardProps) {
+  const router = useRouter();
+  const { data: session } = useSession();
   const supportedUnits = product.supportedUnits.map((u) => u.code);
   const [selectedUnit, setSelectedUnit] = useState(
     supportedUnits[0] ?? product.baseUnit.code
@@ -59,6 +63,10 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const handleOrder = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!session) {
+      router.push("/login?callbackUrl=/browse");
+      return;
+    }
     setIsOrdering(true);
     setOrderMsg(null);
     try {

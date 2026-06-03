@@ -7,10 +7,9 @@ export function Navbar() {
   const { data: session } = useSession();
   const pathname = usePathname();
 
-  // Don't show navbar on login page or if not logged in
-  if (!session || pathname === "/login") return null;
+  if (pathname === "/login" || pathname === "/register") return null;
 
-  const role = (session.user as any)?.role;
+  const role = (session?.user as any)?.role || "GUEST";
 
   const links = {
     ADMIN: [
@@ -24,10 +23,13 @@ export function Navbar() {
       { name: "Orders", href: "/seller/orders" },
     ],
     BUYER: [
-      { name: "Browse", href: "/buyer/browse" },
+      { name: "Browse", href: "/browse" },
       { name: "Cart", href: "/buyer/cart" },
       { name: "My Orders", href: "/buyer/my-orders" },
     ],
+    GUEST: [
+      { name: "Browse", href: "/browse" },
+    ]
   };
 
   const navLinks = links[role as keyof typeof links] || [];
@@ -62,18 +64,37 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-4 justify-between sm:justify-end w-full sm:w-auto">
-            <div className="text-sm text-slate-400 flex items-center gap-2">
-              <span className="hidden sm:inline">{session.user?.email}</span>
-              <span className="px-2 py-0.5 rounded text-xs border border-indigo-500/30 bg-indigo-500/10 text-indigo-300">
-                {role}
-              </span>
-            </div>
-            <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 border border-white/10 transition-colors whitespace-nowrap"
-            >
-              Sign Out
-            </button>
+            {session ? (
+              <>
+                <div className="text-sm text-slate-400 flex items-center gap-2">
+                  <span className="hidden sm:inline">{session.user?.email}</span>
+                  <span className="px-2 py-0.5 rounded text-xs border border-indigo-500/30 bg-indigo-500/10 text-indigo-300">
+                    {role}
+                  </span>
+                </div>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 border border-white/10 transition-colors whitespace-nowrap"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <div className="flex gap-2">
+                <Link
+                  href="/login"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/register?role=BUYER"
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 transition-colors whitespace-nowrap"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -91,6 +92,11 @@ export default function LoginPage() {
               <span className="cursor-help" title="Pass: Seller@123">seller@test.com</span>
               <span className="cursor-help" title="Pass: Buyer@123">buyer@test.com</span>
             </div>
+          </div>
+
+          <div className="mt-6 text-center text-sm text-slate-500">
+            Don't have an account?{" "}
+            <Link href="/register?role=BUYER" className="text-indigo-400 hover:underline">Sign up</Link>
           </div>
         </div>
       </div>
