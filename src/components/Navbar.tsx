@@ -39,7 +39,7 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center h-auto sm:h-16 py-4 sm:py-0 gap-4 sm:gap-0">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
-            <Link href="/" className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-blue-400">
+            <Link href="/" className="text-xl font-extrabold tracking-tight gradient-text">
               AasaMedChem
             </Link>
             
@@ -89,7 +89,7 @@ export function Navbar() {
                 </Link>
                 <Link
                   href="/register?role=BUYER"
-                  className="px-4 py-2 rounded-lg text-sm font-medium bg-white text-slate-900 hover:bg-slate-200 transition-colors whitespace-nowrap"
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 text-white transition-all shadow-md shadow-violet-500/20 hover:shadow-lg hover:shadow-violet-500/40 whitespace-nowrap"
                 >
                   Sign Up
                 </Link>

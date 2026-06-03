@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { Navbar } from "@/components/Navbar";
 
-const inter = Inter({ subsets: ["latin"] });
+const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "AasaMedChem | Inventory Management",
@@ -17,12 +17,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.className} dark antialiased`}>
-      <body className="min-h-screen bg-slate-950 text-slate-50 flex flex-col selection:bg-indigo-500/30 relative">
-        {/* Background Gradients */}
+    <html lang="en" className={`${outfit.className} dark antialiased`}>
+      <body className="min-h-screen bg-[#020617] text-slate-50 flex flex-col selection:bg-violet-500/30 relative">
+        {/* Animated Background Gradients */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-600/20 blur-[120px]" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-600/20 blur-[120px]" />
+          <div className="absolute top-0 -left-4 w-96 h-96 bg-violet-600/20 rounded-full mix-blend-multiply filter blur-[128px] opacity-70 animate-blob" />
+          <div className="absolute top-0 -right-4 w-96 h-96 bg-cyan-600/20 rounded-full mix-blend-multiply filter blur-[128px] opacity-70 animate-blob animation-delay-2000" />
+          <div className="absolute -bottom-8 left-20 w-96 h-96 bg-indigo-600/20 rounded-full mix-blend-multiply filter blur-[128px] opacity-70 animate-blob animation-delay-4000" />
         </div>
         <AuthProvider>
           <Navbar />

@@ -178,7 +178,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <button
           type="submit"
           disabled={isOrdering || isLoading || !!fetchError || !preview || !hasStock}
-          className="w-full py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-400 text-white rounded-lg text-sm font-bold shadow-lg shadow-indigo-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+          className="w-full py-2 bg-gradient-to-r from-violet-600 to-cyan-600 hover:from-violet-500 hover:to-cyan-500 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 text-white rounded-lg text-sm font-bold shadow-lg shadow-violet-500/25 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
         >
           {isOrdering ? "Placing…" : !hasStock ? "Out of Stock" : "Add to Cart"}
         </button>

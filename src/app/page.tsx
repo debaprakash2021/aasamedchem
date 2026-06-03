@@ -16,10 +16,11 @@ export default async function Home() {
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center p-4">
       <div className="text-center max-w-2xl mb-12">
-        <h1 className="text-5xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-blue-400 mb-6">
-          AasaMedChem
+        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6">
+          The Future of
+          <span className="block gradient-text mt-2">B2B MedChem</span>
         </h1>
-        <p className="text-lg text-slate-300">
+        <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-12">
           The premier B2B platform for pharmaceutical inventory and order management. 
           Are you looking to procure medical supplies, or sell your inventory?
         </p>
