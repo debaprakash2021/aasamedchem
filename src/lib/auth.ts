@@ -1,7 +1,7 @@
-import type { NextAuthOptions } from "next-auth";
+import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import * as bcrypt from "bcrypt";
-import prisma from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -12,48 +12,23 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials");
-        }
-
+        if (!credentials?.email || !credentials?.password) return null;
+        
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
-          include: { seller: true },
         });
-
-        if (!user) {
-          throw new Error("User not found");
-        }
-
-        if (user.status === "SUSPENDED") {
-          throw new Error("This account is suspended");
-        }
-
-        if (user.status === "DELETED") {
-          throw new Error("This account does not exist");
-        }
-
-        const passwordMatch = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-
-        if (!passwordMatch) {
-          throw new Error("Invalid password");
-        }
-
-        // Update last login
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date() },
-        });
-
+        
+        if (!user || user.status !== "ACTIVE") return null;
+        
+        const isValid = await bcrypt.compare(credentials.password, user.password);
+        if (!isValid) return null;
+        
         return {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role,
-          sellerId: user.seller?.id || null,
+          role: user.role as any,
+          sellerId: user.sellerId,
           status: user.status,
         };
       },
@@ -63,33 +38,26 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role;
+        token.role = user.role as any;
         token.sellerId = (user as any).sellerId;
         token.status = (user as any).status;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (token) {
         session.user.id = token.id as string;
-        (session.user as any).role = token.role;
-        (session.user as any).sellerId = token.sellerId;
-        (session.user as any).status = token.status;
+        session.user.role = token.role as any;
+        session.user.sellerId = token.sellerId as string | null;
+        session.user.status = token.status as string;
       }
       return session;
     },
   },
   pages: {
     signIn: "/login",
-    error: "/login",
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  jwt: {
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
 };

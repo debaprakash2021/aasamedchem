@@ -1,16 +1,29 @@
+import { prisma } from "@/lib/prisma";
+import { QuotationTable } from "@/components/QuotationTable";
+
 export default async function AdminOrdersPage() {
+  const quotations = await prisma.quotation.findMany({
+    include: {
+      buyer: { select: { name: true, email: true } },
+      seller: { select: { businessName: true } },
+      items: {
+        include: {
+          product: { select: { name: true, sku: true } },
+          orderedUnit: { select: { code: true } }
+        }
+      }
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-blue-400">
-          Quotations
-        </h1>
-        <p className="text-slate-400 mt-2">Monitor all quotations across the platform</p>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-3xl font-bold text-white mb-2">System Orders</h1>
+        <p className="text-slate-400">Global overview of all quotations and transactions.</p>
       </div>
 
-      <div className="glass-panel p-6 rounded-2xl text-center text-slate-400">
-        <p>Quotation management - Phase 2 Implementation</p>
-      </div>
+      <QuotationTable quotations={quotations} role="ADMIN" />
     </div>
   );
 }

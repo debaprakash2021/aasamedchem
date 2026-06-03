@@ -7,387 +7,195 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============ ENUMS ============
-
-enum Role {
-  ADMIN
-  SELLER
-  BUYER
-}
-
-enum UserStatus {
-  ACTIVE
-  SUSPENDED
-  DELETED
-}
-
-enum SellerStatus {
-  PENDING_APPROVAL
-  APPROVED
-  SUSPENDED
-  CLOSED
-}
-
-enum ProductStatus {
-  DRAFT
-  ACTIVE
-  OUT_OF_STOCK
-  DISCONTINUED
-}
-
-enum QuotationStatus {
-  DRAFT
-  SUBMITTED
-  REVIEWED
-  APPROVED
-  PAID
-  COMPLETED
-  CANCELLED
-  REJECTED
-}
-
-// ============ USERS & AUTH ============
-
 model User {
-  id              String @id @default(cuid())
-  email           String @unique
-  password        String // bcrypt hashed
-  role            Role @default(BUYER)
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String
+  role      String   @default("BUYER") // ADMIN, SELLER, BUYER
+  status    String   @default("ACTIVE") // ACTIVE, SUSPENDED
+  sellerId  String?  // References SellerProfile if role is SELLER
   
-  // Profile
-  name            String?
-  avatar          String?
-  phone           String?
-  address         String?
-  
-  // Status
-  status          UserStatus @default(ACTIVE)
-  lastLogin       DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  // Relations
-  seller          Seller? // if role = SELLER
-  quotations      Quotation[] // if role = BUYER
-  cart            Cart?
-  wishlist        Wishlist?
-  
-  @@index([email])
-  @@index([role])
-  @@index([status])
+  cart          Cart?
+  quotations    Quotation[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
-// ============ SELLERS ============
-
-model Seller {
-  id                  String @id @default(cuid())
-  userId              String @unique
-  user                User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Business Info
-  businessName        String
-  registrationNumber  String @unique
-  taxId               String?
-  businessAddress     String?
-  businessPhone       String?
-  
-  // Bank Details
-  bankName            String?
-  accountNumber       String?
-  ifscCode            String?
-  
-  // Status
-  status              SellerStatus @default(PENDING_APPROVAL)
-  
-  // Metrics (cached)
-  totalSales          Decimal @default(0) @db.Decimal(19, 2)
-  totalOrders         Int @default(0)
-  
-  // Relations
-  products            Product[]
-  quotations          Quotation[]
-  
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  @@index([status])
-  @@index([businessName])
-}
-
-// ============ UNIT SYSTEM ============
-
-model UnitCategory {
-  id          String @id @default(cuid())
-  name        String @unique // 'weight', 'volume', 'count'
-  dimension   String // 'mass', 'length', 'discrete'
-  
-  units       Unit[]
-  createdAt   DateTime @default(now())
+model SellerProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  businessName String
+  products     Product[]
+  quotations   Quotation[]
 }
 
 model Unit {
-  id           String @id @default(cuid())
-  code         String @unique // 'g', 'kg', 'mL', 'L', 'item'
-  name         String // 'gram', 'kilogram'
-  symbol       String // 'g', 'kg'
-  
-  categoryId   String
-  category     UnitCategory @relation(fields: [categoryId], references: [id])
-  
-  baseMultiplier Decimal @db.Decimal(19, 6) // e.g., kg has 1000.0
-  isAtomic     Boolean @default(false) // true for g, mL, item
-  isActive     Boolean @default(true)
-  
-  // Relations
-  productsBaseUnit    Product[] @relation("ProductBaseUnit")
-  productsSupported   Product[] @relation("ProductUnits")
-  quotationItems      QuotationItem[]
-  conversionFrom      ConversionFactor[] @relation("ConversionFrom")
-  conversionTo        ConversionFactor[] @relation("ConversionTo")
-  
-  createdAt   DateTime @default(now())
-  
-  @@unique([categoryId, code])
-  @@index([code])
-}
+  id    String @id @default(cuid())
+  code  String @unique // e.g. "kg", "g", "L"
+  name  String // e.g. "Kilogram", "Gram"
 
-// ============ PRODUCTS & INVENTORY ============
+  baseProducts Product[] @relation("BaseUnit")
+  supportedProducts Product[] @relation("SupportedUnits")
+  
+  fromFactors ConversionFactor[] @relation("FromUnit")
+  toFactors   ConversionFactor[] @relation("ToUnit")
 
-model ProductCategory {
-  id          String @id @default(cuid())
-  name        String @unique
-  description String?
-  icon        String?
-  
-  products    Product[]
-  createdAt   DateTime @default(now())
-  
-  @@index([name])
+  cartItems CartItem[]
+  quotationItems QuotationItem[]
 }
 
 model Product {
-  id              String @id @default(cuid())
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  sku         String   @unique
+  sellerId    String
+  seller      SellerProfile @relation(fields: [sellerId], references: [id])
   
-  // Ownership
-  sellerId        String
-  seller          Seller @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  baseUnitId  String
+  baseUnit    Unit     @relation("BaseUnit", fields: [baseUnitId], references: [id])
   
-  // Basic Info
-  name            String
-  sku             String
-  description     String?
-  categoryId      String?
-  category        ProductCategory? @relation(fields: [categoryId], references: [id])
-  images          String[] @default([])
-  
-  // Unit & Pricing Core
-  baseUnitId      String
-  baseUnit        Unit @relation("ProductBaseUnit", fields: [baseUnitId], references: [id])
-  supportedUnits  Unit[] @relation("ProductUnits")
-  basePrice       Decimal @db.Decimal(19, 6) // INR per base unit
-  
-  // GST (India)
-  hsnCode         String?
-  gstRate         Decimal? @db.Decimal(5, 2)
-  
-  // Relations
-  inventory       Inventory?
-  conversions     ConversionFactor[]
-  quotationItems  QuotationItem[]
-  
-  // Status
-  status          ProductStatus @default(ACTIVE)
-  isPublished     Boolean @default(false)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  @@unique([sku, sellerId]) // SKU unique per seller
-  @@index([sellerId])
-  @@index([categoryId])
-  @@index([status])
-}
+  supportedUnits Unit[] @relation("SupportedUnits")
 
-model Inventory {
-  id              String @id @default(cuid())
-  productId       String @unique
-  product         Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  
-  quantity        Decimal @db.Decimal(19, 6) // Always in base unit
-  reorderLevel    Decimal @db.Decimal(19, 6) @default(0)
-  
-  lastUpdated     DateTime @default(now()) @updatedAt
-  updatedBy       String?
-  
-  @@index([productId])
+  basePrice   Decimal  @db.Decimal(19, 6)
+  gstRate     Decimal  @default(5.00) @db.Decimal(5, 2)
+  status      String   @default("ACTIVE") // ACTIVE, DISCONTINUED
+  isPublished Boolean  @default(true)
+
+  conversionFactors ConversionFactor[]
+  inventory         Inventory?
+  cartItems         CartItem[]
+  quotationItems    QuotationItem[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ConversionFactor {
-  id              String @id @default(cuid())
-  productId       String
-  product         Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id         String  @id @default(cuid())
+  productId  String
+  product    Product @relation(fields: [productId], references: [id])
   
-  fromUnitId      String
-  fromUnit        Unit @relation("ConversionFrom", fields: [fromUnitId], references: [id])
+  fromUnitId String
+  fromUnit   Unit    @relation("FromUnit", fields: [fromUnitId], references: [id])
   
-  toUnitId        String
-  toUnit          Unit @relation("ConversionTo", fields: [toUnitId], references: [id])
+  toUnitId   String
+  toUnit     Unit    @relation("ToUnit", fields: [toUnitId], references: [id])
   
-  factor          Decimal @db.Decimal(19, 6) // 1 fromUnit = ? toUnit
-  
-  createdAt       DateTime @default(now())
-  
+  factor     Decimal @db.Decimal(19, 6)
+
   @@unique([productId, fromUnitId, toUnitId])
-  @@index([productId])
 }
 
-// ============ QUOTATIONS & ORDERS ============
+model Inventory {
+  id           String  @id @default(cuid())
+  productId    String  @unique
+  product      Product @relation(fields: [productId], references: [id])
+  quantity     Decimal @db.Decimal(19, 6)
+  reorderLevel Decimal @db.Decimal(19, 6) @default(0)
+  updatedBy    String
+  updatedAt    DateTime @updatedAt
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  
+  quantity  Decimal @db.Decimal(19, 6)
+  
+  unitId    String
+  unit      Unit    @relation(fields: [unitId], references: [id])
+  
+  unitPrice Decimal @db.Decimal(19, 6)
+  lineTotal Decimal @db.Decimal(19, 2)
+
+  @@unique([cartId, productId])
+}
 
 model Quotation {
-  id              String @id @default(cuid())
-  
-  quotationNumber String @unique
+  id              String   @id @default(cuid())
+  quotationNumber String   @unique
   
   userId          String
-  user            User @relation(fields: [userId], references: [id])
+  buyer           User     @relation(fields: [userId], references: [id])
   
-  sellerId        String?
-  seller          Seller? @relation(fields: [sellerId], references: [id])
+  sellerId        String
+  seller          SellerProfile @relation(fields: [sellerId], references: [id])
+
+  status          String   @default("SUBMITTED") // SUBMITTED, REVIEWED, APPROVED, PAID, COMPLETED, CANCELLED, REJECTED
   
-  status          QuotationStatus @default(DRAFT)
-  
-  subtotal        Decimal @db.Decimal(19, 2) @default(0)
-  taxAmount       Decimal @db.Decimal(19, 2) @default(0)
-  shippingCost    Decimal @db.Decimal(19, 2) @default(0)
-  totalAmount     Decimal @db.Decimal(19, 2) @default(0)
-  
+  subtotal        Decimal  @db.Decimal(19, 2)
+  taxAmount       Decimal  @db.Decimal(19, 2)
+  totalAmount     Decimal  @db.Decimal(19, 2)
+
   items           QuotationItem[]
-  
-  notes           String?
-  deliveryAddress String?
-  
-  createdAt       DateTime @default(now())
+
   submittedAt     DateTime?
   approvedAt      DateTime?
   completedAt     DateTime?
+  createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  
-  @@index([userId])
-  @@index([sellerId])
-  @@index([status])
-  @@index([createdAt])
 }
 
 model QuotationItem {
-  id              String @id @default(cuid())
+  id              String    @id @default(cuid())
   quotationId     String
   quotation       Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
   
   productId       String
-  product         Product @relation(fields: [productId], references: [id])
+  product         Product   @relation(fields: [productId], references: [id])
   
-  orderedQuantity Decimal @db.Decimal(19, 6)
+  orderedQuantity Decimal   @db.Decimal(19, 6)
   orderedUnitId   String
-  orderedUnit     Unit @relation(fields: [orderedUnitId], references: [id])
+  orderedUnit     Unit      @relation(fields: [orderedUnitId], references: [id])
   
   baseUnit        String
-  baseQuantity    Decimal @db.Decimal(19, 6)
-  unitPrice       Decimal @db.Decimal(19, 6)
-  lineTotal       Decimal @db.Decimal(19, 2)
+  baseQuantity    Decimal   @db.Decimal(19, 6)
   
-  gstApplied      Decimal @db.Decimal(19, 2) @default(0)
-  
-  createdAt       DateTime @default(now())
-  
-  @@index([quotationId])
-  @@index([productId])
-}
+  unitPrice       Decimal   @db.Decimal(19, 6)
+  lineTotal       Decimal   @db.Decimal(19, 2)
+  gstApplied      Decimal   @db.Decimal(19, 2)
 
-// ============ SHOPPING CART ============
-
-model Cart {
-  id              String @id @default(cuid())
-  userId          String @unique
-  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  items           CartItem[]
-  
-  lastModified    DateTime @default(now()) @updatedAt
-}
-
-model CartItem {
-  id              String @id @default(cuid())
-  cartId          String
-  cart            Cart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  
-  productId       String
-  quantity        Decimal @db.Decimal(19, 6)
-  unitId          String
-  
-  unitPrice       Decimal @db.Decimal(19, 6) @default(0)
-  lineTotal       Decimal @db.Decimal(19, 2) @default(0)
-  
-  addedAt         DateTime @default(now())
-  
-  @@unique([cartId, productId])
-  @@index([cartId])
-}
-
-// ============ WISHLIST ============
-
-model Wishlist {
-  id              String @id @default(cuid())
-  userId          String @unique
-  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  items           WishlistItem[]
-  createdAt       DateTime @default(now())
-}
-
-model WishlistItem {
-  id              String @id @default(cuid())
-  wishlistId      String
-  wishlist        Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
-  
-  productId       String
-  addedAt         DateTime @default(now())
-  
-  @@unique([wishlistId, productId])
-}
-
-// ============ AUDIT & COMPLIANCE ============
-
-model AuditLog {
-  id              String @id @default(cuid())
-  userId          String?
-  action          String
-  resourceType    String
-  resourceId      String
-  
-  changes         Json
-  ipAddress       String?
-  
-  timestamp       DateTime @default(now())
-  
-  @@index([userId])
-  @@index([action])
-  @@index([timestamp])
+  conversionLog   ConversionLog?
 }
 
 model ConversionLog {
-  id              String @id @default(cuid())
-  quotationItemId String
+  id               String        @id @default(cuid())
+  quotationItemId  String        @unique
+  quotationItem    QuotationItem @relation(fields: [quotationItemId], references: [id], onDelete: Cascade)
   
-  orderedQuantity Decimal @db.Decimal(19, 6)
-  orderedUnit     String
-  conversionFactor Decimal @db.Decimal(19, 6)
-  baseQuantity    Decimal @db.Decimal(19, 6)
-  baseUnit        String
-  
-  unitPrice       Decimal @db.Decimal(19, 6)
-  lineTotal       Decimal @db.Decimal(19, 2)
-  
-  timestamp       DateTime @default(now())
-  
-  @@index([quotationItemId])
+  orderedQuantity  Decimal       @db.Decimal(19, 6)
+  orderedUnit      String
+  conversionFactor Decimal       @db.Decimal(19, 6)
+  baseQuantity     Decimal       @db.Decimal(19, 6)
+  baseUnit         String
+  unitPrice        Decimal       @db.Decimal(19, 6)
+  lineTotal        Decimal       @db.Decimal(19, 2)
+  createdAt        DateTime      @default(now())
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  action       String
+  resourceType String
+  resourceId   String
+  changes      Json?
+  createdAt    DateTime @default(now())
 }
