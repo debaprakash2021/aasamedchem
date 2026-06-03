@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -54,7 +53,7 @@ model Product {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  inventory Inventory?
+  inventory  Inventory?
   orderItems OrderItem[]
 }
 
@@ -79,13 +78,13 @@ model Order {
 }
 
 model OrderItem {
-  id              String   @id @default(uuid())
+  id              String  @id @default(uuid())
   orderId         String
-  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId       String
-  product         Product  @relation(fields: [productId], references: [id])
+  product         Product @relation(fields: [productId], references: [id])
   orderedUnit     Unit
-  orderedQuantity Decimal  @db.Decimal(19, 6)
-  unitPrice       Decimal  @db.Decimal(19, 6)
-  lineTotal       Decimal  @db.Decimal(19, 2)
+  orderedQuantity Decimal @db.Decimal(19, 6)
+  unitPrice       Decimal @db.Decimal(19, 6)
+  lineTotal       Decimal @db.Decimal(19, 2)
 }
