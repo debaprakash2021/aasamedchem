@@ -25,9 +25,9 @@ export default class UnitConversionService {
       factor = parseFloat(conversion.factor.toString());
     }
 
-    const baseQuantity = orderedQuantity * factor;
+    const baseQuantity = factor === 1 ? orderedQuantity : orderedQuantity / factor;
     const basePrice = parseFloat(product.basePrice.toString());
-    const unitPrice = basePrice * factor;
+    const unitPrice = factor === 1 ? basePrice : basePrice / factor;
     
     const lineTotal = orderedQuantity * unitPrice;
     const gstRate = parseFloat(product.gstRate.toString());
