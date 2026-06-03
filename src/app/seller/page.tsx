@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Link from "next/link";
+import { SellerCharts } from "@/components/charts/SellerCharts";
 
 export default async function SellerDashboard() {
   const session = await getServerSession(authOptions);
@@ -16,7 +17,7 @@ export default async function SellerDashboard() {
     );
   }
 
-  const [productsCount, pendingCount, approvedCount, revenueResult] =
+  const [productsCount, pendingCount, approvedCount, revenueResult, completedOrders] =
     await Promise.all([
       prisma.product.count({
         where: { sellerId, status: { not: "DISCONTINUED" } },
@@ -31,9 +32,29 @@ export default async function SellerDashboard() {
         where: { sellerId, status: { in: ["PAID", "COMPLETED"] } },
         _sum: { totalAmount: true },
       }),
+      prisma.quotation.findMany({
+        where: { sellerId, status: { in: ["PAID", "COMPLETED"] } },
+        include: { items: { include: { product: { select: { name: true } } } } },
+        orderBy: { createdAt: "asc" }
+      })
     ]);
 
   const revenue = revenueResult._sum.totalAmount?.toNumber() ?? 0;
+
+  const productRev: Record<string, number> = {};
+  const dailyRev: Record<string, number> = {};
+
+  completedOrders.forEach(order => {
+    const dateStr = new Date(order.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric" });
+    dailyRev[dateStr] = (dailyRev[dateStr] || 0) + parseFloat(order.totalAmount.toString());
+
+    order.items.forEach(item => {
+      productRev[item.product.name] = (productRev[item.product.name] || 0) + parseFloat(item.lineTotal.toString());
+    });
+  });
+
+  const pieData = Object.entries(productRev).map(([name, value]) => ({ name, value }));
+  const lineData = Object.entries(dailyRev).map(([date, revenue]) => ({ date, revenue }));
 
   const stats = [
     { label: "Active Products", value: productsCount, color: "indigo", href: "/seller/my-products" },
@@ -57,6 +78,8 @@ export default async function SellerDashboard() {
           </Link>
         ))}
       </div>
+
+      <SellerCharts data={{ pieData, lineData }} />
     </div>
   );
 }

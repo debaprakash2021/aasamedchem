@@ -14,6 +14,7 @@ export function Navbar() {
 
   const links = {
     ADMIN: [
+      { name: "Activity", href: "/admin/activity" },
       { name: "Orders", href: "/admin/orders" },
     ],
     SELLER: [
@@ -32,7 +33,7 @@ export function Navbar() {
   const navLinks = links[role as keyof typeof links] || [];
 
   return (
-    <nav className="sticky top-0 z-40 w-full backdrop-blur-md bg-slate-950/80 border-b border-white/5 mb-8">
+    <nav className="print:hidden sticky top-0 z-40 w-full backdrop-blur-md bg-slate-950/80 border-b border-white/5 mb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center h-auto sm:h-16 py-4 sm:py-0 gap-4 sm:gap-0">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">

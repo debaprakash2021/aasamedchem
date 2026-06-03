@@ -65,6 +65,14 @@ export function QuotationTable({
     setUpdating(null);
   };
 
+  const handlePrint = (e: React.MouseEvent, qId: string) => {
+    e.stopPropagation();
+    setExpanded(qId);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
   if (quotations.length === 0) {
     return (
       <div className="text-center p-12 glass-panel rounded-2xl text-slate-400">
@@ -84,9 +92,9 @@ export function QuotationTable({
         const isExpanded = expanded === q.id;
 
         return (
-          <div key={q.id} className="glass-panel rounded-2xl overflow-hidden border border-white/5">
+          <div key={q.id} className={`glass-panel rounded-2xl overflow-hidden border border-white/5 ${isExpanded ? "print:block print:absolute print:inset-0 print:bg-white print:text-black print:z-50 print:p-8" : "print:hidden"}`}>
             <div
-              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 cursor-pointer hover:bg-white/5 transition-colors gap-4"
+              className="flex flex-col sm:flex-row sm:items-center justify-between p-5 cursor-pointer hover:bg-white/5 transition-colors gap-4 print:hidden"
               onClick={() => setExpanded(isExpanded ? null : q.id)}
             >
               <div className="flex-1">
@@ -106,17 +114,55 @@ export function QuotationTable({
                 </div>
               </div>
 
-              <div className="text-right">
-                <p className="text-xl font-bold text-indigo-400">₹{total.toFixed(2)}</p>
-                <p className="text-xs text-slate-500">{date}</p>
+              <div className="text-right flex flex-col items-end gap-2">
+                <div>
+                  <p className="text-xl font-bold text-indigo-400">₹{total.toFixed(2)}</p>
+                  <p className="text-xs text-slate-500">{date}</p>
+                </div>
+                <button
+                  onClick={(e) => handlePrint(e, q.id)}
+                  className="px-3 py-1 rounded text-xs border border-slate-600 text-slate-300 hover:bg-slate-800 transition-colors flex items-center gap-1 print:hidden"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                  Invoice PDF
+                </button>
               </div>
             </div>
 
             {isExpanded && (
-              <div className="p-5 bg-black/20 border-t border-white/5">
+              <div className="p-5 bg-black/20 border-t border-white/5 print:bg-transparent print:border-none print:text-black">
+                
+                {/* Print Header */}
+                <div className="hidden print:block mb-8 border-b pb-6 border-slate-300">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h1 className="text-2xl font-bold text-slate-900 mb-1">AasaMedChem</h1>
+                      <p className="text-sm text-slate-600">Official Invoice</p>
+                    </div>
+                    <div className="text-right">
+                      <h2 className="text-xl font-bold text-slate-800">{q.quotationNumber}</h2>
+                      <p className="text-sm text-slate-600">Date: {date}</p>
+                      <p className="text-sm text-slate-600 mt-1 font-medium">{q.status}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between mt-8">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase text-slate-500 mb-1">Billed To</h3>
+                      <p className="text-sm font-medium text-slate-800">{q.buyer?.name ?? q.buyer?.email ?? "N/A"}</p>
+                    </div>
+                    {q.seller && (
+                      <div className="text-right">
+                        <h3 className="text-xs font-bold uppercase text-slate-500 mb-1">From Seller</h3>
+                        <p className="text-sm font-medium text-slate-800">{q.seller.businessName}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 <div className="overflow-x-auto mb-6">
-                  <table className="w-full text-left text-sm text-slate-300">
-                    <thead className="text-xs uppercase text-slate-500 border-b border-white/10">
+                  <table className="w-full text-left text-sm text-slate-300 print:text-slate-800">
+                    <thead className="text-xs uppercase text-slate-500 border-b border-white/10 print:border-slate-300">
                       <tr>
                         <th className="py-2 px-4 font-medium">Product</th>
                         <th className="py-2 px-4 font-medium text-right">Ordered</th>
@@ -135,9 +181,9 @@ export function QuotationTable({
                         const gst = parseFloat(item.gstApplied?.toString() ?? "0");
 
                         return (
-                          <tr key={item.id} className="hover:bg-white/5">
+                          <tr key={item.id} className="hover:bg-white/5 print:border-b print:border-slate-200">
                             <td className="py-3 px-4">
-                              <div className="font-medium text-white">{item.product.name}</div>
+                              <div className="font-medium text-white print:text-slate-900">{item.product.name}</div>
                               <div className="text-xs text-slate-500">SKU: {item.product.sku}</div>
                             </td>
                             <td className="py-3 px-4 text-right">
@@ -158,9 +204,9 @@ export function QuotationTable({
                   </table>
                 </div>
 
-                <div className="flex flex-col sm:flex-row justify-between items-end gap-6 border-t border-white/10 pt-4">
+                <div className="flex flex-col sm:flex-row justify-between items-end gap-6 border-t border-white/10 print:border-slate-300 pt-4">
                   {role !== "BUYER" && actions.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 print:hidden">
                       {actions.map((action) => {
                         const isDanger = action === "REJECTED" || action === "CANCELLED";
                         return (
@@ -179,9 +225,9 @@ export function QuotationTable({
                         );
                       })}
                     </div>
-                  ) : <div />}
+                  ) : <div className="print:hidden" />}
 
-                  <div className="w-64 space-y-2 text-sm text-slate-300">
+                  <div className="w-64 space-y-2 text-sm text-slate-300 print:text-slate-700">
                     <div className="flex justify-between">
                       <span>Subtotal</span>
                       <span>₹{parseFloat(q.subtotal?.toString() ?? "0").toFixed(2)}</span>
@@ -190,9 +236,9 @@ export function QuotationTable({
                       <span>Tax (GST)</span>
                       <span>₹{parseFloat(q.taxAmount?.toString() ?? "0").toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between font-bold text-lg text-white border-t border-white/10 pt-2 mt-2">
+                    <div className="flex justify-between font-bold text-lg text-white print:text-slate-900 border-t border-white/10 print:border-slate-300 pt-2 mt-2">
                       <span>Total</span>
-                      <span className="text-indigo-400">₹{total.toFixed(2)}</span>
+                      <span className="text-indigo-400 print:text-slate-900">₹{total.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
