@@ -19,11 +19,12 @@ async function main() {
 
   const kg = getUnit("kg");
   const g = getUnit("g");
+  const mg = getUnit("mg");
   const L = getUnit("L");
   const mL = getUnit("mL");
   const item = getUnit("item");
 
-  if (!kg || !g || !L || !mL || !item) {
+  if (!kg || !g || !mg || !L || !mL || !item) {
     console.error("Units not found! Run prisma/seed.ts first.");
     return;
   }
@@ -43,14 +44,16 @@ async function main() {
       gstRate: "5.00",
       status: "ACTIVE",
       isPublished: true,
-      supportedUnits: { connect: [{ id: kg }, { id: g }] },
+      supportedUnits: { connect: [{ id: kg }, { id: g }, { id: mg }] },
       inventory: {
         create: { quantity: "50", reorderLevel: "10", updatedBy: seller.id }
       },
       conversionFactors: {
         create: [
           { fromUnitId: kg, toUnitId: g, factor: "1000.00" },
-          { fromUnitId: g, toUnitId: kg, factor: "0.001000" }
+          { fromUnitId: g, toUnitId: kg, factor: "0.001000" },
+          { fromUnitId: kg, toUnitId: mg, factor: "1000000.00" },
+          { fromUnitId: mg, toUnitId: kg, factor: "0.000001" }
         ]
       }
     }
@@ -68,14 +71,16 @@ async function main() {
       gstRate: "5.00",
       status: "ACTIVE",
       isPublished: true,
-      supportedUnits: { connect: [{ id: kg }, { id: g }] },
+      supportedUnits: { connect: [{ id: kg }, { id: g }, { id: mg }] },
       inventory: {
         create: { quantity: "120", reorderLevel: "20", updatedBy: seller.id }
       },
       conversionFactors: {
         create: [
           { fromUnitId: kg, toUnitId: g, factor: "1000.00" },
-          { fromUnitId: g, toUnitId: kg, factor: "0.001000" }
+          { fromUnitId: g, toUnitId: kg, factor: "0.001000" },
+          { fromUnitId: kg, toUnitId: mg, factor: "1000000.00" },
+          { fromUnitId: mg, toUnitId: kg, factor: "0.000001" }
         ]
       }
     }

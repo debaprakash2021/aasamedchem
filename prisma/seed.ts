@@ -70,6 +70,7 @@ async function main() {
     { code: "g", name: "Gram" },
     { code: "L", name: "Liter" },
     { code: "mL", name: "Milliliter" },
+    { code: "mg", name: "Milligram" },
     { code: "item", name: "Item" },
   ];
 
