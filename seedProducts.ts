@@ -29,7 +29,10 @@ async function main() {
     return;
   }
 
-  // Clear existing products to prevent unique constraints issues if run multiple times
+  // Clear existing products and dependencies to prevent unique constraints issues
+  await prisma.cartItem.deleteMany();
+  await prisma.inventory.deleteMany();
+  await prisma.conversionFactor.deleteMany();
   await prisma.product.deleteMany();
 
   // 1. Paracetamol
